@@ -1,0 +1,66 @@
+- name: get cassandra ip from cassandra
+  shell: ip add show |grep inet |grep eth0  |awk '{print $2}'|awk -F [/\t] '{print $1}'
+  register: cassandraip
+
+- name: add cassandra ip file
+  connection: local
+  lineinfile:
+    dest: /home/cassandra_ip
+    line: "{{ cassandraip.stdout }}"
+    state: present
+    create: True
+    insertafter: EOF
+  register: result2
+  until: result2|succeeded
+  retries: 3
+  delay: 1
+
+- name: get cassandra seeds ip
+  connection: local
+  shell: "cat /home/cassandra_ip| awk 'NR ==1'"
+  register: ip 
+
+- name: run cassandra container
+  docker_container:
+    name: cassandra
+    image: "cassandra:latest"
+    state: started
+    restart: yes
+    recreate: no
+    ports:
+      - "9042:9042"
+      - "7000:7000"
+    env:
+      CASSANDRA_SEEDS: "{{ ip.stdout }}" 
+      CASSANDRA_BROADCAST_ADDRESS: "{{ cassandraip.stdout }}"
+      CASSANDRA_CLUSTER_NAME: 'Capella'
+      REAPER_CASS_AUTH_ENABLED: true
+      REAPER_CASS_AUTH_USERNAME: cassandra
+      REAPER_CASS_AUTH_PASSWORD: cassandra
+
+#- name: add cassandra ip file
+#  connection: local
+#  lineinfile:
+#    dest: /home/cassandra_ip
+#    line: "{{ cassandraip.stdout }}"
+#    state: present
+#    create: True
+#    insertafter: EOF
+#
+#- name: carculate ip lines
+#  connection: local
+#  shell: "cat /home/cassandra_ip | wc -l"
+#  register: num
+
+- name: echo cassandraip
+  debug: msg={{ cassandraip }}
+
+- name: create cassadra keysnamespaces
+  shell: docker exec cassandra cqlsh -e "CREATE KEYSPACE capella WITH replication = {'class':'SimpleStrategy','replication_factor':1};"
+  when:
+    - inventory_hostname == groups['capella-core-cassandra'][0]
+  run_once: true
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 5

@@ -1,0 +1,88 @@
+- name: reading cassandra ip
+  connection: local
+  shell: cat /home/cassandra_ip
+  register: var2
+
+- set_fact:
+    cassandra_access_addresses: |-
+          {% for item in  var2.stdout_lines -%}
+            {{ item }}:9042{% if not loop.last %},{% endif %}
+          {%- endfor %}
+
+- name: reading zookeeperip
+  connection: local
+  shell: cat /home/zookeeper_ip |awk -F [=\t] '{print $2}'
+  register: var1
+
+- set_fact:
+    zookeeper_access_addresses: |-
+          {% for item in  var1.stdout_lines -%}
+            {{ item }}:2181{% if not loop.last %},{% endif %}
+          {%- endfor %}
+
+- name: Log into external DockerHub
+  docker_login:
+    registry: "{{ external_network }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+
+- name: run capella-core init container
+  docker_container:
+    image: "{{ external_network }}/capella/capella-core:{{ capella_core_version }}"
+    name: test
+    pull: yes
+    state: started
+    command: install
+    env:
+      DATABASE_TYPE: cassandra
+      CASSANDRA_CLUSTER_NAME: 'Capella'
+      CASSANDRA_URL: "{%- if cassandra_access_addresses -%} {%- set csaddresses=cassandra_access_addresses |string -%} {{csaddresses}} {%- endif -%}"
+    detach: false
+    cleanup: yes
+  delegate_to: "{{groups['capella-core-beijing'][0]}}"
+  run_once: true
+  register: result
+  until: result|succeeded
+  retries: 5
+  delay: 5
+
+- name: run capella-core container
+  docker_container:
+    name: capella-core
+    image: "{{ external_network }}/capella/capella-core:{{ capella_core_version }}"
+    state: started
+    restart: yes
+    recreate: no
+    privileged: yes
+    ulimits: nofile:655360:655360
+    ports:
+      - "8080:8080"
+      - "1883:1883"
+      - "5683:5683/udp"
+      - "5684:5684/udp"
+      - "5685:5685/udp"
+      - "9001:9001"
+    env:
+      DATABASE_TYPE: cassandra
+      CASSANDRA_CLUSTER_NAME: 'Capella'
+      CASSANDRA_URL: "{%- if cassandra_access_addresses -%} {%- set csaddresses=cassandra_access_addresses |string -%} {{csaddresses}} {%- endif -%}"
+      ZOOKEEPER_ENABLED: true
+      ZOOKEEPER_URL: "{%- if zookeeper_access_addresses -%} {%- set zkaddresses=zookeeper_access_addresses |string -%} {{zkaddresses}} {%- endif -%}"
+      ADVERTISE_SCHEME: https
+      ZOOKEEPER_SESSION_TIMEOUT_MS: 60000
+      CLUSTER_VIRTUAL_NODES_SIZE: 64
+      RPC_HOST: "{{ ansible_eth0['ipv4']['address'] }}"
+      CAPELLA_CORE_MEM_MAX: 8g
+      CAPELLA_CORE_MEM_MIN: 8g
+
+- name: get capella-core ip from cassandra
+  shell: ip add show |grep inet |grep eth0  |awk '{print $2}'|awk -F [/\t] 'NR ==1 {print $1}'
+  register: capellacoreip
+
+- name: add capella-core ip file
+  connection: local
+  lineinfile:
+    dest: /home/capella-coreip
+    line: "{{ capellacoreip.stdout }}"
+    create: True
+    insertafter: EOF

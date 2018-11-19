@@ -1,0 +1,15 @@
+- hosts: test_matchion
+  roles:
+  - env_prepare
+
+- hosts: test_matchion
+  roles:
+  - capella_cassandra
+
+- hosts: test_matchion
+  roles:
+  - capella_zookeeper
+
+- hosts: test_matchion
+  roles:
+  - capella_core

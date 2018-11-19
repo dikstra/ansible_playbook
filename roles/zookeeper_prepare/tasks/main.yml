@@ -1,0 +1,18 @@
+- name: get zookeeper ip from cassandra
+  shell: ip add show |grep inet |grep eth0  |awk '{print $2}'|awk -F [/\t] 'NR ==1 {print $1}'
+  register: zookeeperip
+
+- name: add zookeeper ip in local file
+  connection: local
+  lineinfile:
+    dest: /home/zookeeper_ip
+    line: "{{ zookeeper_myid }}={{ zookeeperip.stdout }}"
+    create: True
+    state: present
+    insertafter: EOF
+
+- name: add zookeeper ip in remote file
+  lineinfile:
+    dest: /tmp/zookeeper
+    line: "{{ zookeeperip.stdout }}"
+    create: True

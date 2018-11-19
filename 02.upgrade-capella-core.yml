@@ -1,0 +1,4 @@
+- hosts: capella-core-beijing
+  gather_facts: True
+  roles:
+  - capella_core_upgrade

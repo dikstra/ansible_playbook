@@ -1,0 +1,4 @@
+{
+"insecure-registries": ["http://docker.sunseaiot.cn"],
+"registry-mirrors": ["http://docker-group.sunseaiot.cn"]
+}

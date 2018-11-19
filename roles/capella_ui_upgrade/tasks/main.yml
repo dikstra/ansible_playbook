@@ -1,0 +1,55 @@
+- name: judge install or update
+  shell: "sudo docker ps |grep capella-ui|awk '{print $2}'|cut -d : -f 2"
+  register: version
+  ignore_errors: True
+
+#- name: delete old capella-ui container
+#  when: (version.stdout != "{{ capella_ui_version }}")
+#  docker_container:
+#    name: capella-ui
+#    state: absent
+#
+- name: judge capella-ui-old container exist
+  shell: "sudo docker ps -a |grep capella-ui-old|grep -v grep|wc -l"
+  register: num
+  ignore_errors: True
+
+- name: remove capella-ui-old container
+  when: ( num.rc == 1 )
+  shell: "sudo docker rm -f capella-ui-old"
+  ignore_errors: True
+
+- name: rename and stop old capella-ui container
+  when: (version.stdout != "{{ capella_ui_version }}")
+  shell: "sudo docker rename capella-ui capella-ui-old && sudo docker stop capella-ui-old"
+  ignore_errors: True
+
+- name: reading capella-core ip
+  connection: local
+  shell: cat /home/capella-coreip
+  register: var1
+
+- set_fact:
+    capella_core_access_addresses: |-
+          {% for item in  var1.stdout_lines -%}
+           {{ item }}:8080{% if not loop.last %};server {% endif %}
+          {%- endfor %}
+
+- name: Log into external DockerHub
+  docker_login:
+    registry: "{{ external_network }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+
+- name: run external capella-ui container
+  when: (version.stdout != "{{ capella_ui_version }}")
+  docker_container:
+    name: capella-ui
+    image: "{{ external_network }}/capella/capella-ui:{{ capella_ui_version }}"
+    state: started
+    restart: yes
+    ports:
+      - "8080:8080"
+    env:
+      CAPELLA_CORE_SERVER: "{%- if capella_core_access_addresses -%} {%- set capellacoreip=capella_core_access_addresses |string -%} {{capellacoreip}} {%- endif -%}"
+

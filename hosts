@@ -1,0 +1,49 @@
+#在allhosts 下输入需要部署的ip和密码，此playbook需要使用root用户部署
+[allhosts]
+192.168.5.203 ansible_ssh_pass=123456
+
+# playbook 中需要使用到的变量，目前只支持内网部署
+[all:vars]
+# docker 版本，建议使用指定版本，不修改此项
+docker_version="17.12.1"
+
+# 部署至内网还是外网有两种选择（inner_network，exten_network)
+cluster_network="inner_network"
+
+#内网仓库地址
+inner_registry="docker.sunseaiot.com"
+
+#外网仓库地址
+external_network="docker.sunseaiot.com"
+
+#登陆仓库用户名和密码（内网填内网的，外网填外网的)
+username="deployuser"
+password="otY@M6YMT"
+
+#需要安装的docker 镜像,默认不需要修改
+build_packages="huawei_nb"
+
+#部署系统选择(ubuntu/centos)
+system_version="centos"
+
+#华为适配器版本
+adapter_version="1.1.3"
+
+[ningxia_capella]
+52.82.21.130 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.53.31 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.60.79 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.27.128 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.16.234 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.12.148 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.23.231 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.13.162 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.45.129 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.21.3 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.25.148 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.83.180.120 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.12.177 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+
+[ningxia_ui]
+52.82.12.177 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos
+52.82.53.31 ansible_ssh_private_key_file=/home/capella_ningxia.pem ansible_become=true ansible_user=centos

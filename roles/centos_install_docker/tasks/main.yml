@@ -1,0 +1,79 @@
+- name: Fail if Docker version is 17.12.1
+  fail:
+    msg: "docker_version must be 17.12.1, yours is set to {{ docker_version }}."
+  when: docker_version != "17.12.1"
+
+- name: install dependency soft
+  shell: yum -y install yum-utils device-mapper-persistent-data lvm2 epel-release
+
+- name: judge Docker is intalled
+  shell: "rpm -qa |grep docker-ce| grep {{ docker_version }}"
+  register: result
+  ignore_errors: yes
+
+- name: Remove Docker
+  when: result.rc != 0
+  yum: name={{ item }} state=absent
+  with_items:
+    - docker
+    - docker-engine
+    - docker-ce
+    - docker.io
+    - docker-client
+    - docker-common
+
+- name: Add yum repo
+  shell: yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+- name: Add docker reop
+  shell: yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+- name: Install Docker
+  when: result.rc != 0
+  yum:  
+    name: docker-ce-{{ docker_version }}.ce
+    state: present
+
+- name: start docker service
+  service: name=docker.service enabled=yes state=started
+  when: result.rc != 0
+  tags: start
+
+- name: copy docker daemon file
+  when: "cluster_network == 'inner_network'"
+  template: src=inner_daemon.json dest=/etc/docker/daemon.json
+
+- name: copy docker daemon file
+  when: "cluster_network == 'exten_network'"
+  template: src=exten_daemon.json dest=/etc/docker/daemon.json
+
+- name: restart docker service
+  service: name=docker.service enabled=yes state=restarted
+  when: result.rc != 0
+  tags: restart
+
+- name: enable docker service
+  shell: systemctl enable docker
+  ignore_errors: true
+
+- name: install python-pip
+  yum: 
+    name: python-pip
+    state: present
+
+- name: make directory for docker container
+  shell: mkdir -p /home/customer/mysql/data && mkdir -p /home/customer/ayla_adapter_ct/log
+
+- name: Docker-PY
+  pip:
+    name: "{{ item }}"
+  with_items:
+  - six==1.11.0
+  - docker-py==1.10.6
+
+- name: Add a new docker bridge
+  docker_network:
+    name: customer
+    ipam_options:
+      subnet: '172.30.0.0/16'
+

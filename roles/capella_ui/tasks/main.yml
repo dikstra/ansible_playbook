@@ -1,0 +1,28 @@
+- name: reading capella-core ip
+  connection: local
+  shell: cat /home/capella-coreip
+  register: var1
+
+- set_fact:
+    capella_core_access_addresses: |-
+          {% for item in  var1.stdout_lines -%}
+           {{ item }}:8080{% if not loop.last %};server {% endif %}
+          {%- endfor %}
+
+- name: Log into external DockerHub
+  docker_login:
+    registry: "{{ external_network }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+
+- name: run external capella-ui container
+  docker_container:
+    name: capella-ui
+    image: "{{ external_network }}/capella/capella-ui:{{ capella_ui_version }}"
+    state: started
+    restart: yes
+    ports:
+      - "8080:8080"
+    env:
+      CAPELLA_CORE_SERVER: "{%- if capella_core_access_addresses -%} {%- set capellacoreip=capella_core_access_addresses |string -%} {{capellacoreip}} {%- endif -%}"
+

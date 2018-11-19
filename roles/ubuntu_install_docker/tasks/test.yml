@@ -1,0 +1,15 @@
+---
+    - hosts: localhost
+      tasks: 
+        - shell: echo "name={{item.name}},age={{item.age}}"
+          with_items: 
+            - {name: zhangsan,age: 32}
+            - {name: lisi,age: 33}
+            - {name: wangwu,age: 35}
+          register: who
+        - debug: msg="{% for i in who.results %} {{i.stdout}} {% endfor %}"
+
+    - name: Fail if Docker version is 17.12.1
+      fail:
+        msg: "docker_version must be 17.12.1, yours is set to {{ docker_version }}."
+      when: docker_version != "17.12.1"

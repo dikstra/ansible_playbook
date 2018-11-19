@@ -1,0 +1,39 @@
+- name: reading zookeeper ip
+  shell: cat /tmp/zookeeper
+  register: var1
+
+- name: copy all zookeeperip file
+  copy:
+    src: /home/zookeeper_ip
+    dest: /tmp/
+
+- name: get zookeeper ip 
+  shell: cat /tmp/zookeeper_ip|grep {{ var1.stdout }}|awk -F [=\t] '{print $1}'
+  register: var2
+
+- name: reading all zookeepr ip 
+  shell: cat /tmp/zookeeper_ip|grep -v {{ var1.stdout }}
+  register: var3
+
+- set_fact:
+    zookeeper_access_addresses: |-
+          server.{{ var2.stdout }}=0.0.0.0:2888:3888 {% for item in  var3.stdout_lines -%}
+            server.{{ item }}:2888:3888{% if not loop.last %} {% endif %}
+          {%- endfor %}
+
+- name: run zookeeper container
+  docker_container:
+    name: zookeeper
+    image: "zookeeper:3.4.13"
+    state: started
+    restart: yes
+    recreate: no
+    ports:
+      - "2181:2181"
+      - "2888:2888"
+      - "3888:3888"
+    env:
+      ZOO_MY_ID: "{{ var2.stdout }}"
+      ZOO_SERVERS: "{%- if zookeeper_access_addresses -%} {%- set zkaddresses=zookeeper_access_addresses |string -%} {{zkaddresses}} {%- endif -%}"
+      ZOO_SYNC_LIMIT: 5
+

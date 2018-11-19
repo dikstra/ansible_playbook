@@ -1,0 +1,21 @@
+#- hosts: capella-core-zookeeper
+#  roles:
+#  - env_prepare
+#  - zookeeper_prepare
+#  - capella_zookeeper
+
+#- hosts: capella-core-cassandra
+#  roles:
+#  - env_prepare
+#  - capella_cassandra
+
+#- hosts: capella-core-beijing
+#  gather_facts: True
+#  roles:
+#  - env_prepare
+  #- capella_core
+
+- hosts: capella-beijing-ui
+  roles:
+  - env_prepare
+  #- capella_ui

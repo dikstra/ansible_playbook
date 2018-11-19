@@ -1,0 +1,84 @@
+- name: reading cassandra ip
+  connection: local
+  shell: cat /home/cassandra_ip
+  register: var2
+
+- set_fact:
+    cassandra_access_addresses: |-
+          {% for item in  var2.stdout_lines -%}
+            {{ item }}:9042{% if not loop.last %},{% endif %}
+          {%- endfor %}
+
+- name: reading zookeeperip
+  connection: local
+  shell: cat /home/zookeeper_ip |awk -F [=\t] '{print $2}'
+  register: var1
+
+- set_fact:
+    zookeeper_access_addresses: |-
+          {% for item in  var1.stdout_lines -%}
+            {{ item }}:2181{% if not loop.last %},{% endif %}
+          {%- endfor %}
+
+- name: Log into external DockerHub
+  docker_login:
+    registry: "{{ external_network }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+
+#- name: judge capella-core-old container exist
+#  shell: "sudo docker ps -a |grep capella-core-old|grep -v grep|wc -l"
+#  register: num
+#  ignore_errors: True
+#
+#- name: remove capella-core-old contain if exists
+#  when: ( num.rc == 1 )
+#  shell: "sudo docker rm -f capella-core-old"
+#  ignore_errors: True
+
+- name: judge install or update capella_core_version
+  shell: "sudo docker ps |grep capella-core|awk '{print $2}'|cut -d : -f 2"
+  register: version
+  ignore_errors: True
+
+#- name: delete old capella-core container
+#  when: (version.stdout != "{{ capella_core_version }}")
+#  docker_container:
+#    name: capella-core
+#    state: absent
+
+- name: stop and remove capella-core container
+  when: (version.stdout != "{{ capella_core_version }}")
+  shell: "sudo docker rename capella-core capella-core-old && sudo docker stop capella-core-old"
+  ignore_errors: True
+
+- name: run capella-core container
+  when: (version.stdout != "{{ capella_core_version }}")
+  docker_container:
+    name: capella-core
+    image: "{{ external_network }}/capella/capella-core:{{ capella_core_version }}"
+    state: started
+    restart: yes
+    recreate: no
+    privileged: yes
+    ulimits: nofile:655360:655360
+    ports:
+      - "8080:8080"
+      - "1883:1883"
+      - "5683:5683/udp"
+      - "5684:5684/udp"
+      - "5685:5685/udp"
+      - "9001:9001"
+    env:
+      DATABASE_TYPE: cassandra
+      CASSANDRA_CLUSTER_NAME: 'Capella'
+      CASSANDRA_URL: "{%- if cassandra_access_addresses -%} {%- set csaddresses=cassandra_access_addresses |string -%} {{csaddresses}} {%- endif -%}"
+      ZOOKEEPER_ENABLED: true
+      ZOOKEEPER_URL: "{%- if zookeeper_access_addresses -%} {%- set zkaddresses=zookeeper_access_addresses |string -%} {{zkaddresses}} {%- endif -%}"
+      ADVERTISE_SCHEME: https
+      ZOOKEEPER_SESSION_TIMEOUT_MS: 60000
+      CLUSTER_VIRTUAL_NODES_SIZE: 64
+      RPC_HOST: "{{ ansible_eth0['ipv4']['address'] }}"
+      CAPELLA_CORE_MEM_MAX: 8g
+      CAPELLA_CORE_MEM_MIN: 8g
+

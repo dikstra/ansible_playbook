@@ -1,0 +1,36 @@
+- name: Docker-PY
+  pip:
+    name: "{{ item }}"
+  with_items:
+  - six==1.11.0
+  - docker-py==1.10.6
+
+- name: Log into external DockerHub
+  docker_login:
+    registry: "{{ inner_registry }}"
+    username: "{{ username }}"
+    password: "{{ password }}"
+
+- name: judge install or update
+  shell: "docker ps |grep capella-ui|awk '{print $2}'|cut -d : -f 2"
+  register: version
+  ignore_errors: True
+
+- name: delete old capella-ui adapter container
+  when: (version.stdout != "{{ adapter_version }}")
+  docker_container:
+    name: customer.ayla_adapter_ct
+    state: absent
+
+- name: run external capella-ui container
+  when: (version.stdout != "{{ adapter_version }}")
+  docker_container:
+    name: capella-ui
+    image: "{{ inner_registry }}/capella/capella-ui:{{ adapter_version }}"
+    state: started
+    restart: yes
+    ports:
+      - "8080:8080"
+    env:
+      CAPELLA_CORE_SERVER: "CAPELLA_CORE_SERVER=172.31.26.72:8080;server 172.31.27.133:8080;server 172.31.20.244:8080;server 172.31.26.240:8080"
+

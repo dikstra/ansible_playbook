@@ -1,0 +1,3 @@
+- hosts: capella-beijing-ui
+  roles:
+  - capella_ui_upgrade
