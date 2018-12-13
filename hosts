@@ -18,7 +18,7 @@ external_network="docker.sunseaiot.com"
 
 #登陆仓库用户名和密码（内网填内网的，外网填外网的)
 username="deployuser"
-password="otY@M6YMT"
+password=""
 
 #需要安装的docker 镜像,默认不需要修改
 build_packages="huawei_nb"
